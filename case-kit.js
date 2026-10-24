@@ -16,7 +16,7 @@
   else root.Case = factory();
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
-  var C = { version: "0.1.0" };
+  var C = { version: "0.2.0" };
   var uid = 0;
   function id() { uid++; return "c" + Date.now().toString(36) + "-" + uid.toString(36); }
   function day(ts) { return new Date(ts == null ? Date.now() : ts).toISOString().slice(0, 10); }
@@ -81,6 +81,64 @@
   C.fromJSON = function (text) {
     var o = typeof text === "string" ? JSON.parse(text) : text;
     return C.create(o);
+  };
+
+  /* ------------------------------------------------------------------ *
+   * Interchange record — hand a case (or a set of cases) to another app  *
+   * ------------------------------------------------------------------ *
+   * One plain-JSON envelope any app in the family can read and write:
+   *
+   *   { "format": "case-kit/record", "version": 1, "exported": "<ISO>",
+   *     "patient": { "id": "<opaque>", "label": "<initials or code>" },
+   *     "cases": [ <case>, ... ] }
+   *
+   * The patient block carries an OPAQUE id and a SHORT LABEL — never a name.
+   * The envelope is plain JSON, so a human and another tool can both read it,
+   * and it never touches the network. Where a record is encrypted (the
+   * Encrypted Case Log), the whole envelope is what gets encrypted, not the
+   * plaintext. See the README for the shape and the family mapping.
+   */
+  C.RECORD_FORMAT = "case-kit/record";
+  C.RECORD_VERSION = 1;
+
+  // Normalise a patient block: an opaque id plus a short label. Never a name.
+  C.patient = function (p) {
+    p = p || {};
+    return { id: p.id ? String(p.id) : "", label: p.label ? String(p.label) : "" };
+  };
+
+  // Export one case, or a set of cases, as a single interchange record (a JSON string).
+  C.exportRecord = function (cases, patient, opts) {
+    opts = opts || {};
+    var list = Array.isArray(cases) ? cases : (cases ? [cases] : []);
+    var rec = {
+      format: C.RECORD_FORMAT,
+      version: C.RECORD_VERSION,
+      exported: opts.exported || new Date().toISOString(),
+      patient: C.patient(patient),
+      cases: list
+    };
+    return JSON.stringify(rec, null, 2);
+  };
+
+  // Read an interchange record back. Accepts a JSON string or an object.
+  // Older versions are migrated; a NEWER version is refused, never guessed.
+  C.importRecord = function (text) {
+    var o = typeof text === "string" ? JSON.parse(text) : text;
+    if (!o || typeof o !== "object" || Array.isArray(o)) throw new Error("case-kit: record is not an object");
+    if (o.format && o.format !== C.RECORD_FORMAT) throw new Error("case-kit: not a " + C.RECORD_FORMAT + " record");
+    var v = o.version == null ? 0 : (o.version | 0);
+    if (v > C.RECORD_VERSION) {
+      throw new Error("case-kit: record version " + v + " is newer than this kit can read (max " + C.RECORD_VERSION + ")");
+    }
+    // Migration point: as the shape evolves, older versions are upgraded here.
+    // v0 = records written before the version field existed.
+    var list = Array.isArray(o.cases) ? o.cases : [];
+    return {
+      version: v,
+      patient: C.patient(o.patient),
+      cases: list.map(function (cse) { return C.create(cse); })
+    };
   };
 
   return C;

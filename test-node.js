@@ -33,5 +33,40 @@ ok("summary last event date", s.lastEvent === "2026-01-07");
 const round = Case.fromJSON(Case.toJSON(c));
 ok("round-trips through JSON", round.title === c.title && round.symptoms.length === 3);
 
+
+/* ---- interchange record (update: case-kit) ---- */
+const rec = Case.exportRecord([c], { id: "p-001", label: "S.M." });
+const parsed = JSON.parse(rec);
+ok("record is plain JSON with a format and version", parsed.format === "case-kit/record" && parsed.version === 1);
+ok("record carries an opaque patient id + short label", parsed.patient.id === "p-001" && parsed.patient.label === "S.M.");
+ok("record never carries a name field", !("name" in parsed.patient));
+ok("record wraps the case in cases[]", Array.isArray(parsed.cases) && parsed.cases.length === 1);
+
+const back = Case.importRecord(rec);
+ok("import restores the case", back.cases.length === 1 && back.cases[0].title === c.title && back.cases[0].symptoms.length === 3);
+ok("import restores the patient block", back.patient.id === "p-001" && back.patient.label === "S.M.");
+ok("round-trip preserves symptoms and follow-ups",
+   JSON.stringify(back.cases[0].symptoms) === JSON.stringify(c.symptoms) && back.cases[0].followUps.length === 1);
+
+ok("export accepts a single case", JSON.parse(Case.exportRecord(c)).cases.length === 1);
+ok("export accepts a set of cases", JSON.parse(Case.exportRecord([c, Case.create({ title: "Second" })])).cases.length === 2);
+ok("patient defaults to empty (no invented id or label)", Case.patient().id === "" && Case.patient().label === "");
+
+/* version compatibility */
+const legacy = JSON.stringify({ format: "case-kit/record", cases: [{ title: "Old case", symptoms: [] }] });
+const migrated = Case.importRecord(legacy);
+ok("a pre-version record still imports (v0)",
+   migrated.version === 0 && migrated.cases.length === 1 && migrated.cases[0].title === "Old case");
+
+let futureRejected = false;
+try { Case.importRecord(JSON.stringify({ format: "case-kit/record", version: 2, cases: [] })); }
+catch (e) { futureRejected = /newer than/.test(e.message); }
+ok("a newer version is refused, not guessed", futureRejected);
+
+let foreignRejected = false;
+try { Case.importRecord(JSON.stringify({ format: "something-else", cases: [] })); }
+catch (e) { foreignRejected = true; }
+ok("a foreign record is refused", foreignRejected);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
