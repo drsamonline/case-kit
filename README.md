@@ -2,7 +2,7 @@
 
 [![live](https://img.shields.io/badge/live-online-22c55e)](https://drsamonline.github.io/case-kit/)
 [![test](https://github.com/drsamonline/case-kit/actions/workflows/test.yml/badge.svg)](https://github.com/drsamonline/case-kit/actions/workflows/test.yml)
-[![license](https://img.shields.io/badge/license-PolyForm Noncommercial-blue)](LICENSE)
+[![License: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-blue)](LICENSE)
 
 **Clinical case tracking.** Zero dependencies. One file. Sections, dated symptoms, follow-ups, a timeline and a summary — the shared logic
 extracted from the drsamonline apps that repeat it.
