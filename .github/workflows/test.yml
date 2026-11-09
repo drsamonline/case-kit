@@ -26,4 +26,8 @@ jobs:
         with:
           node-version: "20"
       - name: Run tests
+        # In the timezone the kit's users are in: the calendar-day assertions
+        # below are a no-op under UTC, which is where the bug hid.
+        env:
+          TZ: Asia/Kolkata
         run: node test-node.js
