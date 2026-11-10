@@ -68,5 +68,20 @@ try { Case.importRecord(JSON.stringify({ format: "something-else", cases: [] }))
 catch (e) { foreignRejected = true; }
 ok("a foreign record is refused", foreignRejected);
 
+/* The calendar day is the clinician's, not UTC. Run the suite with
+ * TZ=Asia/Kolkata (test.yml sets it) or this assertion is a no-op: at 04:00 in
+ * India, toISOString() is still the previous day. */
+(function () {
+  var early = new Date(2026, 10, 9, 4, 0, 0);            // local 04:00, 9 Nov 2026
+  var c = Case.create({ created: early.getTime(), title: "early" });
+  ok("a case entered at 04:00 local is filed on that day", Case.summary(c).created === "2026-11-09",
+     Case.summary(c).created);
+  var late = new Date(2026, 10, 9, 23, 30, 0);
+  var d = Case.create({ created: late.getTime(), title: "late" });
+  Case.addSymptom(d, { note: "x", date: late.getTime() });
+  ok("and so is the last event at 23:30 local", Case.summary(d).lastEvent === "2026-11-09",
+     Case.summary(d).lastEvent);
+})();
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

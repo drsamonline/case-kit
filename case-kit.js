@@ -19,7 +19,16 @@
   var C = { version: "0.2.0" };
   var uid = 0;
   function id() { uid++; return "c" + Date.now().toString(36) + "-" + uid.toString(36); }
-  function day(ts) { return new Date(ts == null ? Date.now() : ts).toISOString().slice(0, 10); }
+  // The calendar day the clinician was living in, not the UTC one. toISOString()
+  // is timezone-free, so a case entered at 04:00 in India was filed on the
+  // previous day: 04:00 IST on 9 November is 22:30 UTC on 8 November, and the
+  // summary said "2026-11-08". Every user of this kit is in a positive-offset
+  // timezone, which is why nobody saw it from a UTC machine.
+  function day(ts) {
+    var d = new Date(ts == null ? Date.now() : ts);
+    var p = function (n) { return (n < 10 ? "0" : "") + n; };
+    return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+  }
 
   C.create = function (opts) {
     opts = opts || {};
